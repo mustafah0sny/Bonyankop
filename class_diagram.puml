@@ -1,0 +1,489 @@
+@startuml Smart_Home_Maintenance_Platform_Class_Diagram
+
+' Smart Home Maintenance Platform - UML Class Diagram
+' Version: 3.0
+' Last Updated: November 2025
+
+!define ENTITY_COLOR #E8F5E9
+!define SERVICE_COLOR #E3F2FD
+!define PROJECT_COLOR #FFF9C4
+!define SYSTEM_COLOR #F5F5F5
+
+skinparam classAttributeIconSize 0
+skinparam classFontSize 11
+skinparam packageStyle rectangle
+
+' =====================================================
+' USER MANAGEMENT
+' =====================================================
+
+package "User Management" <<Rectangle>> {
+  
+  class User <<Entity>> ENTITY_COLOR {
+    - userId: UUID
+    - email: String
+    - passwordHash: String
+    - role: UserRole
+    - fullName: String
+    - phoneNumber: String?
+    - profilePictureUrl: String?
+    - isVerified: Boolean
+    - isActive: Boolean
+    - lastLoginAt: DateTime?
+    - createdAt: DateTime
+    - updatedAt: DateTime
+    --
+    + register(): User
+    + login(email, password): Token
+    + logout(): void
+    + updateProfile(data): User
+    + changePassword(oldPassword, newPassword): void
+    + verifyAccount(token): Boolean
+    + resetPassword(email): void
+    + deactivateAccount(): void
+  }
+
+  enum UserRole {
+    CITIZEN
+    ENGINEER
+    COMPANY
+    GOVERNMENT
+    ADMIN
+  }
+
+  class ProviderProfile <<Entity>> SERVICE_COLOR {
+    - providerId: UUID
+    - userId: UUID
+    - providerType: ProviderType
+    - businessName: String
+    - description: String?
+    - servicesOffered: List<String>
+    - certifications: List<Certification>
+    - coverageAreas: List<String>
+    - licenseNumber: String?
+    - yearsOfExperience: Integer?
+    - averageRating: Decimal
+    - totalProjects: Integer
+    - totalRatings: Integer
+    - completionRate: Decimal
+    - responseTimeHours: Decimal?
+    - isVerified: Boolean
+    - isFeatured: Boolean
+    - createdAt: DateTime
+    - updatedAt: DateTime
+    --
+    + createProfile(userId, data): ProviderProfile
+    + updateProfile(data): ProviderProfile
+    + addPortfolioItem(item): PortfolioItem
+    + getPortfolio(): List<PortfolioItem>
+    + calculateAverageRating(): Decimal
+    + updateCompletionRate(): void
+    + submitQuote(request): Quote
+    + getActiveProjects(): List<Project>
+  }
+
+  enum ProviderType {
+    COMPANY
+    ENGINEER
+  }
+
+  class PortfolioItem <<Entity>> SERVICE_COLOR {
+    - portfolioId: UUID
+    - providerId: UUID
+    - title: String
+    - description: String?
+    - projectType: String?
+    - images: List<Image>
+    - projectDate: Date?
+    - location: String?
+    - displayOrder: Integer
+    - isFeatured: Boolean
+    - createdAt: DateTime
+    - updatedAt: DateTime
+    --
+    + create(providerId, data): PortfolioItem
+    + update(data): PortfolioItem
+    + delete(): void
+    + uploadImages(images): void
+    + reorder(newOrder): void
+  }
+}
+
+' =====================================================
+' AI DIAGNOSTICS
+' =====================================================
+
+package "AI Diagnostics" <<Rectangle>> {
+  
+  class Diagnostic <<Entity>> SERVICE_COLOR {
+    - diagnosticId: UUID
+    - citizenId: UUID
+    - imageUrl: String
+    - imageMetadata: ImageMetadata
+    - riskLevel: RiskLevel
+    - problemCategory: ProblemCategory
+    - problemSubcategory: String?
+    - probableCause: String
+    - riskPrediction: String
+    - recommendedAction: String
+    - aiConfidenceScore: Decimal
+    - aiModelVersion: String?
+    - processingTimeMs: Integer?
+    - isDiyPossible: Boolean
+    - estimatedCostRange: String?
+    - urgencyLevel: UrgencyLevel?
+    - createdAt: DateTime
+    --
+    + analyze(citizenId, image): Diagnostic
+    + getAnalysisResult(): DiagnosticResult
+    + createServiceRequest(): ServiceRequest
+    + getRecommendations(): List<String>
+  }
+
+  enum RiskLevel {
+    LOW
+    MEDIUM
+    HIGH
+  }
+
+  enum ProblemCategory {
+    PLUMBING
+    ELECTRICAL
+    STRUCTURAL
+    HVAC
+    ROOFING
+  }
+
+  enum UrgencyLevel {
+    LOW
+    MEDIUM
+    HIGH
+    URGENT
+  }
+
+  class ImageMetadata <<ValueObject>> {
+    + width: Integer
+    + height: Integer
+    + format: String
+    + size: Integer
+    + capturedAt: DateTime?
+  }
+}
+
+' =====================================================
+' SERVICE MARKETPLACE
+' =====================================================
+
+package "Service Marketplace" <<Rectangle>> {
+  
+  class ServiceRequest <<Entity>> SERVICE_COLOR {
+    - requestId: UUID
+    - diagnosticId: UUID?
+    - citizenId: UUID
+    - problemTitle: String
+    - problemDescription: String
+    - problemCategory: String
+    - additionalImages: List<Image>
+    - preferredProviderType: String?
+    - preferredServiceDate: Date?
+    - propertyType: String?
+    - propertyAddress: String?
+    - contactPhone: String?
+    - status: RequestStatus
+    - selectedQuoteId: UUID?
+    - quotesCount: Integer
+    - viewsCount: Integer
+    - expiresAt: DateTime?
+    - createdAt: DateTime
+    - updatedAt: DateTime
+    --
+    + create(citizenId, data): ServiceRequest
+    + update(data): ServiceRequest
+    + cancel(): void
+    + getQuotes(): List<Quote>
+    + selectQuote(quoteId): void
+    + acceptQuote(quoteId): Project
+    + extendExpiration(days): void
+    + incrementViews(): void
+  }
+
+  enum RequestStatus {
+    OPEN
+    QUOTES_RECEIVED
+    PROVIDER_SELECTED
+    CANCELLED
+  }
+
+  class Quote <<Entity>> SERVICE_COLOR {
+    - quoteId: UUID
+    - requestId: UUID
+    - providerId: UUID
+    - estimatedCost: Decimal
+    - costBreakdown: CostBreakdown
+    - estimatedDurationDays: Integer?
+    - technicalAssessment: String?
+    - proposedSolution: String?
+    - materialsIncluded: Boolean
+    - warrantyPeriodMonths: Integer?
+    - termsAndConditions: String?
+    - validityPeriodDays: Integer
+    - attachments: List<Attachment>
+    - status: QuoteStatus
+    - rejectionReason: String?
+    - submittedAt: DateTime
+    - expiresAt: DateTime
+    - acceptedAt: DateTime?
+    - updatedAt: DateTime
+    --
+    + submit(providerId, requestId, data): Quote
+    + update(data): Quote
+    + accept(): Project
+    + reject(reason): void
+    + withdraw(): void
+    + isExpired(): Boolean
+    + calculateTotal(): Decimal
+  }
+
+  enum QuoteStatus {
+    PENDING
+    ACCEPTED
+    REJECTED
+    EXPIRED
+    WITHDRAWN
+  }
+
+  class CostBreakdown <<ValueObject>> {
+    + laborCost: Decimal
+    + materialsCost: Decimal
+    + equipmentCost: Decimal
+    + otherCosts: Decimal
+    + taxAmount: Decimal
+    + totalAmount: Decimal
+  }
+}
+
+' =====================================================
+' PROJECT EXECUTION
+' =====================================================
+
+package "Project Execution" <<Rectangle>> {
+  
+  class Project <<Entity>> PROJECT_COLOR {
+    - projectId: UUID
+    - requestId: UUID
+    - quoteId: UUID
+    - citizenId: UUID
+    - providerId: UUID
+    - projectTitle: String
+    - projectDescription: String?
+    - status: ProjectStatus
+    - scheduledStartDate: Date?
+    - actualStartDate: Date?
+    - scheduledEndDate: Date?
+    - actualCompletionDate: Date?
+    - agreedCost: Decimal
+    - actualCost: Decimal?
+    - costDifferenceReason: String?
+    - paymentStatus: PaymentStatus
+    - workNotes: List<WorkNote>
+    - beforeImages: List<Image>
+    - duringImages: List<Image>
+    - afterImages: List<Image>
+    - technicalReportUrl: String?
+    - completionCertificateUrl: String?
+    - warrantyStartDate: Date?
+    - warrantyEndDate: Date?
+    - citizenSatisfaction: String?
+    - createdAt: DateTime
+    - updatedAt: DateTime
+    --
+    + create(quote): Project
+    + start(): void
+    + updateStatus(status): void
+    + addWorkNote(note): void
+    + uploadImages(phase, images): void
+    + complete(): void
+    + cancel(reason): void
+    + submitForReview(): void
+    + calculateDuration(): Integer
+    + isOverdue(): Boolean
+  }
+
+  enum ProjectStatus {
+    SCHEDULED
+    IN_PROGRESS
+    COMPLETED
+    CANCELLED
+    DISPUTED
+  }
+
+  enum PaymentStatus {
+    PENDING
+    PARTIAL
+    COMPLETED
+    REFUNDED
+  }
+
+  class WorkNote <<ValueObject>> {
+    + timestamp: DateTime
+    + author: String
+    + note: String
+    + images: List<Image>
+  }
+
+  class Rating <<Entity>> PROJECT_COLOR {
+    - ratingId: UUID
+    - projectId: UUID
+    - citizenId: UUID
+    - providerId: UUID
+    - overallRating: Integer
+    - qualityRating: Integer
+    - timelinessRating: Integer
+    - professionalismRating: Integer
+    - valueRating: Integer
+    - communicationRating: Integer
+    - reviewTitle: String?
+    - reviewText: String?
+    - wouldRecommend: Boolean?
+    - responseFromProvider: String?
+    - responseAt: DateTime?
+    - isVerified: Boolean
+    - isFeatured: Boolean
+    - helpfulCount: Integer
+    - createdAt: DateTime
+    - updatedAt: DateTime
+    --
+    + create(projectId, data): Rating
+    + update(data): Rating
+    + addProviderResponse(response): void
+    + markHelpful(): void
+    + calculateAverageRating(): Decimal
+    + verify(): void
+  }
+}
+
+' =====================================================
+' SYSTEM SUPPORT
+' =====================================================
+
+package "System Support" <<Rectangle>> {
+  
+  class AuditLog <<Entity>> SYSTEM_COLOR {
+    - logId: UUID
+    - userId: UUID?
+    - actionType: String
+    - entityType: String?
+    - entityId: UUID?
+    - actionDescription: String?
+    - oldValues: Map<String, Any>?
+    - newValues: Map<String, Any>?
+    - ipAddress: String?
+    - userAgent: String?
+    - requestUrl: String?
+    - responseStatus: Integer?
+    - executionTimeMs: Integer?
+    - errorMessage: String?
+    - sessionId: String?
+    - createdAt: DateTime
+    --
+    + log(action, data): AuditLog
+    + getByUser(userId): List<AuditLog>
+    + getByEntity(entityType, entityId): List<AuditLog>
+    + search(criteria): List<AuditLog>
+  }
+
+  class SystemSettings <<Entity>> SYSTEM_COLOR {
+    - settingId: UUID
+    - settingKey: String
+    - settingValue: String?
+    - dataType: DataType
+    - category: String?
+    - description: String?
+    - isPublic: Boolean
+    - isEditable: Boolean
+    - createdAt: DateTime
+    - updatedAt: DateTime
+    --
+    + get(key): Any
+    + set(key, value): void
+    + getByCategory(category): Map<String, Any>
+    + resetToDefault(key): void
+  }
+
+  enum DataType {
+    STRING
+    NUMBER
+    BOOLEAN
+    JSON
+  }
+}
+
+' =====================================================
+' RELATIONSHIPS
+' =====================================================
+
+' User Management Relationships
+User "1" -- "0..1" ProviderProfile : has >
+User "1" -- "0..*" Diagnostic : creates >
+User "1" -- "0..*" ServiceRequest : creates >
+User "1" -- "0..*" Project : participates >
+User "1" -- "0..*" Rating : writes >
+
+ProviderProfile "1" -- "0..*" PortfolioItem : showcases >
+ProviderProfile "1" -- "0..*" Quote : submits >
+ProviderProfile "1" -- "0..*" Project : executes >
+ProviderProfile "1" -- "0..*" Rating : receives >
+
+' Service Flow Relationships
+Diagnostic "0..1" -- "0..*" ServiceRequest : generates >
+ServiceRequest "1" -- "0..*" Quote : receives >
+ServiceRequest "1" -- "0..1" Project : converts to >
+Quote "1" -- "0..1" Project : accepted as >
+Project "1" -- "1" Rating : receives >
+
+' Enums
+User -- UserRole
+ProviderProfile -- ProviderType
+Diagnostic -- RiskLevel
+Diagnostic -- ProblemCategory
+Diagnostic -- UrgencyLevel
+ServiceRequest -- RequestStatus
+Quote -- QuoteStatus
+Project -- ProjectStatus
+Project -- PaymentStatus
+SystemSettings -- DataType
+
+' Value Objects
+Diagnostic *-- ImageMetadata
+Quote *-- CostBreakdown
+Project *-- WorkNote
+
+note right of User
+  Base user entity for all actors
+  in the platform (citizens, providers,
+  government officials, admins)
+end note
+
+note right of ProviderProfile
+  Extended profile for service providers
+  Contains business information, ratings,
+  and performance metrics
+end note
+
+note right of Diagnostic
+  AI-powered analysis of home issues
+  Uses computer vision and ML to
+  identify problems and risks
+end note
+
+note right of ServiceRequest
+  Marketplace entry point where citizens
+  request professional services
+end note
+
+note right of Project
+  Tracks the entire lifecycle of a
+  maintenance project from start to finish
+end note
+
+@enduml

@@ -1,0 +1,363 @@
+// Smart Home Maintenance Platform - Database Schema
+// Database Markup Language (DBML) Definition
+// Version: 3.0
+// Last Updated: November 2025
+
+// =====================================================
+// USER MANAGEMENT
+// =====================================================
+
+Table users {
+  user_id uuid [pk, not null]
+  email varchar(255) [unique, not null]
+  password_hash varchar(255) [not null]
+  role varchar(50) [not null, note: 'citizen, engineer, company, government, admin']
+  full_name varchar(255) [not null]
+  phone_number varchar(20)
+  profile_picture_url text
+  is_verified boolean [default: false]
+  is_active boolean [default: true]
+  last_login_at timestamp
+  created_at timestamp [default: `now()`, not null]
+  updated_at timestamp [default: `now()`, not null]
+  
+  indexes {
+    email [unique]
+    role
+    (is_active, role)
+    created_at
+  }
+  
+  note: 'Core user accounts for all platform users'
+}
+
+// =====================================================
+// SERVICE PROVIDER PROFILES
+// =====================================================
+
+Table provider_profiles {
+  provider_id uuid [pk, not null]
+  user_id uuid [unique, not null, ref: - users.user_id]
+  provider_type varchar(50) [not null, note: 'company or engineer']
+  business_name varchar(255) [not null]
+  description text
+  services_offered jsonb [note: 'Array of service types: ["plumbing", "electrical", "hvac", etc.]']
+  certifications jsonb [note: 'Array of certification objects']
+  coverage_areas jsonb [note: 'Geographic areas served']
+  license_number varchar(100)
+  years_of_experience integer
+  average_rating decimal(3,2) [default: 0]
+  total_projects integer [default: 0]
+  total_ratings integer [default: 0]
+  completion_rate decimal(5,2) [default: 0]
+  response_time_hours decimal(5,2)
+  is_verified boolean [default: false]
+  is_featured boolean [default: false]
+  created_at timestamp [default: `now()`, not null]
+  updated_at timestamp [default: `now()`, not null]
+  
+  indexes {
+    user_id [unique]
+    provider_type
+    is_verified
+    average_rating
+    (is_verified, is_featured)
+  }
+  
+  note: 'Extended profile for service providers (engineers and companies)'
+}
+
+Table portfolio_items {
+  portfolio_id uuid [pk, not null]
+  provider_id uuid [not null, ref: > provider_profiles.provider_id]
+  title varchar(255) [not null]
+  description text
+  project_type varchar(100)
+  images jsonb [note: 'Array of image objects with URLs']
+  project_date date
+  location varchar(255)
+  display_order integer [default: 0]
+  is_featured boolean [default: false]
+  created_at timestamp [default: `now()`, not null]
+  updated_at timestamp [default: `now()`, not null]
+  
+  indexes {
+    provider_id
+    (provider_id, display_order)
+    is_featured
+  }
+  
+  note: 'Showcase of completed work by service providers'
+}
+
+// =====================================================
+// AI DIAGNOSTICS
+// =====================================================
+
+Table diagnostics {
+  diagnostic_id uuid [pk, not null]
+  citizen_id uuid [not null, ref: > users.user_id]
+  image_url text [not null]
+  image_metadata jsonb [note: 'Image dimensions, format, size, etc.']
+  risk_level varchar(50) [not null, note: 'low, medium, high']
+  problem_category varchar(100) [not null, note: 'plumbing, electrical, structural, hvac, roofing']
+  problem_subcategory varchar(100)
+  probable_cause text [not null]
+  risk_prediction text [not null]
+  recommended_action text [not null]
+  ai_confidence_score decimal(5,2) [not null]
+  ai_model_version varchar(50)
+  processing_time_ms integer
+  is_diy_possible boolean [default: false]
+  estimated_cost_range varchar(100)
+  urgency_level varchar(50)
+  created_at timestamp [default: `now()`, not null]
+  
+  indexes {
+    citizen_id
+    problem_category
+    risk_level
+    created_at
+    (citizen_id, created_at)
+  }
+  
+  note: 'AI-powered diagnostic analysis of home maintenance issues'
+}
+
+// =====================================================
+// SERVICE MARKETPLACE
+// =====================================================
+
+Table service_requests {
+  request_id uuid [pk, not null]
+  diagnostic_id uuid [ref: > diagnostics.diagnostic_id]
+  citizen_id uuid [not null, ref: > users.user_id]
+  problem_title varchar(255) [not null]
+  problem_description text [not null]
+  problem_category varchar(100) [not null]
+  additional_images jsonb [note: 'Additional photos from citizen']
+  preferred_provider_type varchar(50) [note: 'company, engineer, any']
+  preferred_service_date date
+  property_type varchar(50)
+  property_address text
+  contact_phone varchar(20)
+  status varchar(50) [not null, default: 'open', note: 'open, quotes_received, provider_selected, cancelled']
+  selected_quote_id uuid [ref: - quotes.quote_id]
+  quotes_count integer [default: 0]
+  views_count integer [default: 0]
+  expires_at timestamp
+  created_at timestamp [default: `now()`, not null]
+  updated_at timestamp [default: `now()`, not null]
+  
+  indexes {
+    citizen_id
+    diagnostic_id
+    status
+    problem_category
+    created_at
+    (status, created_at)
+    selected_quote_id [unique]
+  }
+  
+  note: 'Service requests from citizens seeking professional help'
+}
+
+Table quotes {
+  quote_id uuid [pk, not null]
+  request_id uuid [not null, ref: > service_requests.request_id]
+  provider_id uuid [not null, ref: > provider_profiles.provider_id]
+  estimated_cost decimal(10,2) [not null]
+  cost_breakdown jsonb [note: 'Detailed breakdown: {labor: {...}, materials: [...]}']
+  estimated_duration_days integer
+  technical_assessment text
+  proposed_solution text
+  materials_included boolean [default: false]
+  warranty_period_months integer
+  terms_and_conditions text
+  validity_period_days integer [default: 7]
+  attachments jsonb [note: 'Supporting documents, diagrams, etc.']
+  status varchar(50) [not null, default: 'pending', note: 'pending, accepted, rejected, expired, withdrawn']
+  rejection_reason text
+  submitted_at timestamp [default: `now()`, not null]
+  expires_at timestamp [not null]
+  accepted_at timestamp
+  updated_at timestamp [default: `now()`, not null]
+  
+  indexes {
+    request_id
+    provider_id
+    status
+    (request_id, provider_id) [unique, note: 'One quote per provider per request']
+    submitted_at
+  }
+  
+  note: 'Price quotes submitted by service providers'
+}
+
+// =====================================================
+// PROJECT EXECUTION
+// =====================================================
+
+Table projects {
+  project_id uuid [pk, not null]
+  request_id uuid [unique, not null, ref: - service_requests.request_id]
+  quote_id uuid [unique, not null, ref: - quotes.quote_id]
+  citizen_id uuid [not null, ref: > users.user_id]
+  provider_id uuid [not null, ref: > provider_profiles.provider_id]
+  project_title varchar(255) [not null]
+  project_description text
+  status varchar(50) [not null, default: 'scheduled', note: 'scheduled, in_progress, completed, cancelled, disputed']
+  scheduled_start_date date
+  actual_start_date date
+  scheduled_end_date date
+  actual_completion_date date
+  agreed_cost decimal(10,2) [not null]
+  actual_cost decimal(10,2)
+  cost_difference_reason text
+  payment_status varchar(50) [default: 'pending', note: 'pending, partial, completed, refunded']
+  work_notes jsonb [note: 'Timeline of work updates with timestamps']
+  before_images jsonb
+  during_images jsonb
+  after_images jsonb
+  technical_report_url text
+  completion_certificate_url text
+  warranty_start_date date
+  warranty_end_date date
+  citizen_satisfaction varchar(50)
+  created_at timestamp [default: `now()`, not null]
+  updated_at timestamp [default: `now()`, not null]
+  
+  indexes {
+    request_id [unique]
+    quote_id [unique]
+    citizen_id
+    provider_id
+    status
+    (provider_id, status)
+    (citizen_id, status)
+    actual_completion_date
+  }
+  
+  note: 'Active and completed maintenance projects'
+}
+
+Table ratings {
+  rating_id uuid [pk, not null]
+  project_id uuid [unique, not null, ref: - projects.project_id]
+  citizen_id uuid [not null, ref: > users.user_id]
+  provider_id uuid [not null, ref: > provider_profiles.provider_id]
+  overall_rating integer [not null, note: '1-5 stars']
+  quality_rating integer [not null, note: '1-5 stars']
+  timeliness_rating integer [not null, note: '1-5 stars']
+  professionalism_rating integer [not null, note: '1-5 stars']
+  value_rating integer [not null, note: '1-5 stars']
+  communication_rating integer [not null, note: '1-5 stars']
+  review_title varchar(255)
+  review_text text
+  would_recommend boolean
+  response_from_provider text
+  response_at timestamp
+  is_verified boolean [default: false]
+  is_featured boolean [default: false]
+  helpful_count integer [default: 0]
+  created_at timestamp [default: `now()`, not null]
+  updated_at timestamp [default: `now()`, not null]
+  
+  indexes {
+    project_id [unique]
+    citizen_id
+    provider_id
+    overall_rating
+    is_featured
+    created_at
+  }
+  
+  note: 'Citizen ratings and reviews of completed projects'
+}
+
+// =====================================================
+// SYSTEM SUPPORT
+// =====================================================
+
+Table audit_logs {
+  log_id uuid [pk, not null]
+  user_id uuid
+  action_type varchar(50) [not null, note: 'user_login, user_logout, data_export, permission_change, etc.']
+  entity_type varchar(50) [note: 'users, projects, quotes, etc.']
+  entity_id uuid
+  action_description text
+  old_values jsonb [note: 'Previous state before change']
+  new_values jsonb [note: 'New state after change']
+  ip_address varchar(45)
+  user_agent text
+  request_url text
+  response_status integer
+  execution_time_ms integer
+  error_message text
+  session_id varchar(255)
+  created_at timestamp [default: `now()`, not null]
+  
+  indexes {
+    user_id
+    action_type
+    entity_type
+    entity_id
+    created_at
+    (user_id, created_at)
+    (entity_type, entity_id)
+  }
+  
+  note: 'System audit trail for security and compliance'
+}
+
+Table system_settings {
+  setting_id uuid [pk, not null]
+  setting_key varchar(100) [unique, not null]
+  setting_value text
+  data_type varchar(50) [default: 'string', note: 'string, number, boolean, json']
+  category varchar(100) [note: 'ai, payment, notification, security, etc.']
+  description text
+  is_public boolean [default: false]
+  is_editable boolean [default: true]
+  created_at timestamp [default: `now()`, not null]
+  updated_at timestamp [default: `now()`, not null]
+  
+  indexes {
+    setting_key [unique]
+    category
+    is_public
+  }
+  
+  note: 'System-wide configuration settings'
+}
+
+// =====================================================
+// RELATIONSHIPS SUMMARY
+// =====================================================
+
+// One-to-One Relationships:
+// - users ←→ provider_profiles (one user can be one provider)
+// - service_requests ←→ projects (one accepted request becomes one project)
+// - quotes ←→ projects (one accepted quote becomes one project)
+// - projects ←→ ratings (one project gets one rating)
+
+// One-to-Many Relationships:
+// - users ←─< diagnostics (one citizen, many diagnostics)
+// - users ←─< service_requests (one citizen, many requests)
+// - provider_profiles ←─< portfolio_items (one provider, many portfolio items)
+// - provider_profiles ←─< quotes (one provider, many quotes)
+// - provider_profiles ←─< projects (one provider, many projects)
+// - diagnostics ←─< service_requests (one diagnostic, many requests - optional)
+// - service_requests ←─< quotes (one request, many quotes)
+
+// =====================================================
+// DATABASE NOTES
+// =====================================================
+
+// Platform: PostgreSQL 14+
+// Character Set: UTF-8
+// Timezone: UTC
+// UUID Generation: gen_random_uuid() or uuid-ossp extension
+// JSONB: Used for flexible schema fields
+// Indexes: Created on foreign keys and frequently queried columns
+// Cascade Rules: Carefully designed to maintain referential integrity
