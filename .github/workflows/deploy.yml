@@ -1,0 +1,67 @@
+name: Deploy to MonsterASP
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build-and-deploy:
+    runs-on: windows-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '10.0.x'
+        
+    - name: Restore dependencies
+      run: dotnet restore BonyankopAPI/BonyankopAPI.csproj
+      
+    - name: Build
+      run: dotnet build BonyankopAPI/BonyankopAPI.csproj --configuration Release --no-restore
+      
+    - name: Publish
+      run: dotnet publish BonyankopAPI/BonyankopAPI.csproj -c Release -o ./publish
+      
+    - name: Create production appsettings
+      run: |
+        $productionSettings = @"
+        {
+          "ConnectionStrings": {
+            "DefaultConnection": "${{ secrets.PRODUCTION_CONNECTION_STRING }}"
+          },
+          "JwtSettings": {
+            "SecretKey": "${{ secrets.JWT_SECRET_KEY }}",
+            "Issuer": "BonyankopAPI",
+            "Audience": "BonyankopAPIUsers",
+            "ExpiryMinutes": 60
+          },
+          "Logging": {
+            "LogLevel": {
+              "Default": "Warning",
+              "Microsoft.AspNetCore": "Warning",
+              "Microsoft.EntityFrameworkCore": "Warning"
+            }
+          },
+          "AllowedHosts": "*"
+        }
+        "@
+        $productionSettings | Out-File -FilePath ./publish/appsettings.Production.json -Encoding UTF8
+      shell: pwsh
+      
+    - name: Create deployment package
+      run: Compress-Archive -Path ./publish/* -DestinationPath ./BonyankopAPI-Deploy.zip -Force
+      
+    - name: Deploy via FTP
+      uses: SamKirkland/FTP-Deploy-Action@v4.3.4
+      with:
+        server: ${{ secrets.FTP_SERVER }}
+        username: ${{ secrets.FTP_USERNAME }}
+        password: ${{ secrets.FTP_PASSWORD }}
+        local-dir: ./publish/
+        server-dir: /
+        dangerous-clean-slate: false

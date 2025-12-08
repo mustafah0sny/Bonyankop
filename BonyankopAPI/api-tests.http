@@ -1,0 +1,72 @@
+### Health Check
+GET http://localhost:5000/api/Health
+
+###
+
+### Database Health Check
+GET http://localhost:5000/api/Health/db
+
+###
+
+### Sign Up Request
+POST http://localhost:5000/api/User/signup
+Content-Type: application/json
+
+{
+  "username": "johndoe",
+  "email": "john@example.com",
+  "password": "password123"
+}
+
+###
+
+### Login Request
+POST http://localhost:5000/api/User/login
+Content-Type: application/json
+
+{
+  "email": "john@example.com",
+  "password": "password123"
+}
+
+###
+
+### Sign Up - Second User
+POST http://localhost:5000/api/User/signup
+Content-Type: application/json
+
+{
+  "username": "janedoe",
+  "email": "jane@example.com",
+  "password": "securepass456"
+}
+
+###
+
+### Mobile Testing - Health Check (Android Emulator)
+GET http://10.0.2.2:5000/api/Health
+
+###
+
+### Mobile Testing - Sign Up (Android Emulator)
+POST http://10.0.2.2:5000/api/User/signup
+Content-Type: application/json
+
+{
+  "username": "mobileuser",
+  "email": "mobile@example.com",
+  "password": "mobile123"
+}
+
+###
+
+### Mobile Testing - Login (Android Emulator)
+POST http://10.0.2.2:5000/api/User/login
+Content-Type: application/json
+
+{
+  "email": "mobile@example.com",
+  "password": "mobile123"
+}
+
+###

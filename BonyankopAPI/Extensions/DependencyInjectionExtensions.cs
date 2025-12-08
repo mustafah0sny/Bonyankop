@@ -1,0 +1,31 @@
+using BonyankopAPI.Interfaces;
+using BonyankopAPI.Services;
+using BonyankopAPI.Repositories;
+
+namespace BonyankopAPI.Extensions
+{
+    public static class DependencyInjectionExtensions
+    {
+        public static IServiceCollection AddApplicationServices(this IServiceCollection services)
+        {
+            // Register repositories
+            services.AddScoped(typeof(IRepository<>), typeof(Repository<>));
+            services.AddScoped<IUserRepository, UserRepository>();
+            services.AddScoped<IProviderProfileRepository, ProviderProfileRepository>();
+            services.AddScoped<IPortfolioItemRepository, PortfolioItemRepository>();
+            services.AddScoped<IDiagnosticRepository, DiagnosticRepository>();
+            services.AddScoped<IServiceRequestRepository, ServiceRequestRepository>();
+            services.AddScoped<IQuoteRepository, QuoteRepository>();
+            services.AddScoped<IProjectRepository, ProjectRepository>();
+            services.AddScoped<IRatingRepository, RatingRepository>();
+            services.AddScoped<IAuditLogRepository, AuditLogRepository>();
+            services.AddScoped<ISystemSettingsRepository, SystemSettingsRepository>();
+
+            // Register custom services
+            services.AddScoped<ITokenService, TokenService>();
+            services.AddScoped<IAiDiagnosticService, AiDiagnosticService>();
+
+            return services;
+        }
+    }
+}
