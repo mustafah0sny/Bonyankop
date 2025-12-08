@@ -37,12 +37,12 @@ namespace BonyankopAPI.Controllers
         [HttpGet("db")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status503ServiceUnavailable)]
-        public ActionResult<object> GetDatabaseHealth([FromServices] Data.ApplicationDbContext context)
+        public async Task<ActionResult<object>> GetDatabaseHealth([FromServices] Data.ApplicationDbContext context)
         {
             try
             {
-                // Try to connect to database
-                var canConnect = context.Database.CanConnect();
+                // Try to connect to database with timeout
+                var canConnect = await context.Database.CanConnectAsync();
                 
                 if (canConnect)
                 {
@@ -59,6 +59,7 @@ namespace BonyankopAPI.Controllers
                     {
                         status = "unhealthy",
                         database = "disconnected",
+                        message = "Cannot connect to database",
                         timestamp = DateTime.UtcNow
                     });
                 }
@@ -70,6 +71,7 @@ namespace BonyankopAPI.Controllers
                     status = "unhealthy",
                     database = "error",
                     error = ex.Message,
+                    innerError = ex.InnerException?.Message,
                     timestamp = DateTime.UtcNow
                 });
             }
