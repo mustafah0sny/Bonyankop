@@ -17,6 +17,8 @@ namespace BonyankopAPI.Data
         public DbSet<Diagnostic> Diagnostics { get; set; }
         public DbSet<ServiceRequest> ServiceRequests { get; set; }
         public DbSet<Quote> Quotes { get; set; }
+        public DbSet<Project> Projects { get; set; }
+        public DbSet<Rating> Ratings { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -113,6 +115,64 @@ namespace BonyankopAPI.Data
                     .WithMany()
                     .HasForeignKey(e => e.RequestId)
                     .OnDelete(DeleteBehavior.Cascade);
+                
+                entity.HasOne(e => e.Provider)
+                    .WithMany()
+                    .HasForeignKey(e => e.ProviderId)
+                    .OnDelete(DeleteBehavior.Restrict);
+            });
+
+            // Configure Project entity
+            modelBuilder.Entity<Project>(entity =>
+            {
+                entity.HasKey(e => e.ProjectId);
+                entity.Property(e => e.Status).HasConversion<string>();
+                entity.Property(e => e.PaymentStatus).HasConversion<string>();
+                entity.Property(e => e.BeforeImages).HasConversion(
+                    v => string.Join(',', v),
+                    v => v.Split(',', StringSplitOptions.RemoveEmptyEntries).ToList());
+                entity.Property(e => e.DuringImages).HasConversion(
+                    v => string.Join(',', v),
+                    v => v.Split(',', StringSplitOptions.RemoveEmptyEntries).ToList());
+                entity.Property(e => e.AfterImages).HasConversion(
+                    v => string.Join(',', v),
+                    v => v.Split(',', StringSplitOptions.RemoveEmptyEntries).ToList());
+                
+                entity.HasOne(e => e.ServiceRequest)
+                    .WithMany()
+                    .HasForeignKey(e => e.RequestId)
+                    .OnDelete(DeleteBehavior.Restrict);
+                
+                entity.HasOne(e => e.Quote)
+                    .WithMany()
+                    .HasForeignKey(e => e.QuoteId)
+                    .OnDelete(DeleteBehavior.Restrict);
+                
+                entity.HasOne(e => e.Citizen)
+                    .WithMany()
+                    .HasForeignKey(e => e.CitizenId)
+                    .OnDelete(DeleteBehavior.Restrict);
+                
+                entity.HasOne(e => e.Provider)
+                    .WithMany()
+                    .HasForeignKey(e => e.ProviderId)
+                    .OnDelete(DeleteBehavior.Restrict);
+            });
+
+            // Configure Rating entity
+            modelBuilder.Entity<Rating>(entity =>
+            {
+                entity.HasKey(e => e.RatingId);
+                
+                entity.HasOne(e => e.Project)
+                    .WithMany()
+                    .HasForeignKey(e => e.ProjectId)
+                    .OnDelete(DeleteBehavior.Cascade);
+                
+                entity.HasOne(e => e.Citizen)
+                    .WithMany()
+                    .HasForeignKey(e => e.CitizenId)
+                    .OnDelete(DeleteBehavior.Restrict);
                 
                 entity.HasOne(e => e.Provider)
                     .WithMany()

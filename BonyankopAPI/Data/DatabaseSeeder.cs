@@ -30,6 +30,9 @@ namespace BonyankopAPI.Data
             
             // Seed Service Requests and Quotes
             await SeedServiceMarketplaceAsync(context, userManager);
+            
+            // Seed Projects and Ratings
+            await SeedProjectExecutionAsync(context, userManager);
         }
 
         private static async Task SeedRolesAsync(RoleManager<IdentityRole<Guid>> roleManager)
@@ -806,6 +809,265 @@ namespace BonyankopAPI.Data
             }
 
             context.ServiceRequests.UpdateRange(serviceRequests.Take(20));
+            await context.SaveChangesAsync();
+        }
+
+        private static async Task SeedProjectExecutionAsync(ApplicationDbContext context, UserManager<User> userManager)
+        {
+            if (await context.Projects.AnyAsync())
+            {
+                return; // Projects already seeded
+            }
+
+            var faker = new Faker();
+            
+            // Get accepted quotes to create projects from
+            var acceptedQuotes = await context.Quotes
+                .Include(q => q.ServiceRequest)
+                .Where(q => q.Status == QuoteStatus.PENDING)
+                .Take(15)
+                .ToListAsync();
+
+            if (!acceptedQuotes.Any())
+            {
+                return; // Need quotes to create projects
+            }
+
+            var projects = new List<Project>();
+            var now = DateTime.UtcNow;
+
+            foreach (var quote in acceptedQuotes)
+            {
+                var request = quote.ServiceRequest;
+                var scheduledStart = faker.Date.Between(now.AddDays(-60), now.AddDays(-30));
+                var scheduledEnd = scheduledStart.AddDays(quote.EstimatedDurationDays ?? 7);
+                
+                // Determine project status based on timeline
+                ProjectStatus status;
+                DateTime? actualStart = null;
+                DateTime? actualCompletion = null;
+                var isCompleted = faker.Random.Bool(0.4f); // 40% completed
+                var isInProgress = !isCompleted && faker.Random.Bool(0.5f); // 30% in progress
+                
+                if (isCompleted)
+                {
+                    status = ProjectStatus.COMPLETED;
+                    actualStart = scheduledStart.AddDays(faker.Random.Int(-2, 2));
+                    actualCompletion = actualStart.Value.AddDays(quote.EstimatedDurationDays ?? 7 + faker.Random.Int(-3, 5));
+                }
+                else if (isInProgress)
+                {
+                    status = ProjectStatus.IN_PROGRESS;
+                    actualStart = scheduledStart.AddDays(faker.Random.Int(-2, 2));
+                }
+                else
+                {
+                    status = ProjectStatus.SCHEDULED;
+                }
+
+                var workNotes = new List<WorkNote>();
+                if (status == ProjectStatus.IN_PROGRESS || status == ProjectStatus.COMPLETED)
+                {
+                    // Add initial work note
+                    workNotes.Add(new WorkNote
+                    {
+                        Timestamp = actualStart ?? scheduledStart,
+                        Author = "Provider",
+                        Note = faker.PickRandom(
+                            "Project started. Initial assessment completed.",
+                            "Work commenced as scheduled. All materials on site.",
+                            "Started work. Initial inspection shows scope is as expected.",
+                            "Project kicked off. Team mobilized and ready."
+                        ),
+                        Images = new List<string>()
+                    });
+
+                    // Add progress notes for in-progress/completed
+                    if (status == ProjectStatus.IN_PROGRESS || status == ProjectStatus.COMPLETED)
+                    {
+                        workNotes.Add(new WorkNote
+                        {
+                            Timestamp = (actualStart ?? scheduledStart).AddDays(faker.Random.Int(2, 4)),
+                            Author = "Provider",
+                            Note = faker.PickRandom(
+                                "Good progress. 50% complete.",
+                                "Work proceeding according to plan.",
+                                "Milestone reached. On track for completion.",
+                                "Phase 1 completed successfully."
+                            ),
+                            Images = new List<string> { "https://example.com/progress1.jpg" }
+                        });
+                    }
+
+                    if (status == ProjectStatus.COMPLETED)
+                    {
+                        workNotes.Add(new WorkNote
+                        {
+                            Timestamp = (actualCompletion ?? scheduledEnd).AddDays(-1),
+                            Author = "Provider",
+                            Note = faker.PickRandom(
+                                "Final touches being applied.",
+                                "Nearing completion. Quality checks in progress.",
+                                "Almost done. Final inspection tomorrow.",
+                                "Completing remaining punch list items."
+                            ),
+                            Images = new List<string>()
+                        });
+                    }
+                }
+
+                var actualCost = quote.EstimatedCost + faker.Random.Decimal(-500, 1000);
+                var costDifference = actualCost - quote.EstimatedCost;
+                
+                var project = new Project
+                {
+                    ProjectId = Guid.NewGuid(),
+                    RequestId = quote.RequestId,
+                    QuoteId = quote.QuoteId,
+                    CitizenId = request.CitizenId,
+                    ProviderId = quote.ProviderId,
+                    ProjectTitle = $"Project: {request.ProblemTitle}",
+                    ProjectDescription = request.ProblemDescription,
+                    Status = status,
+                    ScheduledStartDate = scheduledStart,
+                    ActualStartDate = actualStart,
+                    ScheduledEndDate = scheduledEnd,
+                    ActualCompletionDate = actualCompletion,
+                    AgreedCost = quote.EstimatedCost,
+                    ActualCost = status == ProjectStatus.COMPLETED ? actualCost : null,
+                    CostDifferenceReason = status == ProjectStatus.COMPLETED && Math.Abs(costDifference) > 100 
+                        ? (costDifference > 0 
+                            ? faker.PickRandom("Additional materials required", "Scope increased", "Unexpected complications", "Client requested upgrades")
+                            : faker.PickRandom("Bulk discount on materials", "Efficient completion", "Less work than estimated"))
+                        : null,
+                    PaymentStatus = status == ProjectStatus.COMPLETED 
+                        ? faker.PickRandom(PaymentStatus.COMPLETED, PaymentStatus.PARTIAL, PaymentStatus.PENDING)
+                        : PaymentStatus.PENDING,
+                    WorkNotesJson = System.Text.Json.JsonSerializer.Serialize(workNotes),
+                    BeforeImages = status != ProjectStatus.SCHEDULED 
+                        ? new List<string> { "https://example.com/before1.jpg", "https://example.com/before2.jpg" }
+                        : new List<string>(),
+                    DuringImages = status == ProjectStatus.IN_PROGRESS || status == ProjectStatus.COMPLETED
+                        ? new List<string> { "https://example.com/during1.jpg", "https://example.com/during2.jpg" }
+                        : new List<string>(),
+                    AfterImages = status == ProjectStatus.COMPLETED
+                        ? new List<string> { "https://example.com/after1.jpg", "https://example.com/after2.jpg", "https://example.com/after3.jpg" }
+                        : new List<string>(),
+                    TechnicalReportUrl = status == ProjectStatus.COMPLETED ? "https://example.com/technical-report.pdf" : null,
+                    CompletionCertificateUrl = status == ProjectStatus.COMPLETED ? "https://example.com/certificate.pdf" : null,
+                    WarrantyStartDate = status == ProjectStatus.COMPLETED ? actualCompletion : null,
+                    WarrantyEndDate = status == ProjectStatus.COMPLETED && actualCompletion.HasValue
+                        ? actualCompletion.Value.AddMonths(quote.WarrantyPeriodMonths ?? 12)
+                        : null,
+                    CitizenSatisfaction = status == ProjectStatus.COMPLETED 
+                        ? faker.PickRandom("Very satisfied", "Satisfied", "Excellent work", "Met expectations", "Good quality")
+                        : null,
+                    CreatedAt = scheduledStart.AddDays(-7),
+                    UpdatedAt = status == ProjectStatus.COMPLETED && actualCompletion.HasValue ? actualCompletion.Value : DateTime.UtcNow
+                };
+
+                projects.Add(project);
+
+                // Update quote status to ACCEPTED
+                quote.Status = QuoteStatus.ACCEPTED;
+                quote.AcceptedAt = project.CreatedAt;
+                
+                // Update service request status
+                request.Status = RequestStatus.PROVIDER_SELECTED;
+                request.SelectedQuoteId = quote.QuoteId;
+            }
+
+            await context.Projects.AddRangeAsync(projects);
+            await context.SaveChangesAsync();
+
+            // Now seed ratings for completed projects
+            var completedProjects = projects.Where(p => p.Status == ProjectStatus.COMPLETED).ToList();
+            var ratings = new List<Rating>();
+
+            foreach (var project in completedProjects)
+            {
+                // 80% of completed projects get ratings
+                if (faker.Random.Bool(0.8f))
+                {
+                    var overallRating = faker.Random.Int(3, 5); // Mostly positive ratings
+                    var rating = new Rating
+                    {
+                        RatingId = Guid.NewGuid(),
+                        ProjectId = project.ProjectId,
+                        CitizenId = project.CitizenId,
+                        ProviderId = project.ProviderId,
+                        OverallRating = overallRating,
+                        QualityRating = faker.Random.Int(Math.Max(1, overallRating - 1), Math.Min(5, overallRating + 1)),
+                        TimelinessRating = faker.Random.Int(Math.Max(1, overallRating - 1), Math.Min(5, overallRating + 1)),
+                        ProfessionalismRating = faker.Random.Int(Math.Max(1, overallRating - 1), Math.Min(5, overallRating + 1)),
+                        ValueRating = faker.Random.Int(Math.Max(1, overallRating - 1), Math.Min(5, overallRating + 1)),
+                        CommunicationRating = faker.Random.Int(Math.Max(1, overallRating - 1), Math.Min(5, overallRating + 1)),
+                        ReviewTitle = overallRating >= 4 
+                            ? faker.PickRandom("Excellent work!", "Great service", "Highly recommended", "Professional team", "Very satisfied")
+                            : faker.PickRandom("Good work", "Satisfactory", "Job completed", "Decent service", "As expected"),
+                        ReviewText = overallRating >= 4
+                            ? faker.PickRandom(
+                                "The team was professional and completed the work on time. Very satisfied with the results.",
+                                "Excellent service from start to finish. Would definitely use again.",
+                                "High quality work and great communication throughout the project.",
+                                "Very professional and efficient. The end result exceeded my expectations.",
+                                "Outstanding work. The team was courteous and cleaned up thoroughly after completion.")
+                            : faker.PickRandom(
+                                "Work was completed as agreed. No major issues.",
+                                "The job was done satisfactorily. Some minor delays but overall acceptable.",
+                                "Good work quality. Could improve on communication.",
+                                "Completed the project. Met basic expectations.",
+                                "Decent work. A few rough edges but nothing major."),
+                        WouldRecommend = overallRating >= 4,
+                        ResponseFromProvider = faker.Random.Bool(0.6f) // 60% get provider responses
+                            ? faker.PickRandom(
+                                "Thank you for your feedback! It was a pleasure working with you.",
+                                "We appreciate your kind words. Thank you for choosing us!",
+                                "Thank you for your review. We're glad you're satisfied with our work.",
+                                "We're happy to have met your expectations. Thank you!",
+                                "Thanks for the positive feedback. We look forward to serving you again.")
+                            : null,
+                        ResponseAt = faker.Random.Bool(0.6f) && project.ActualCompletionDate.HasValue
+                            ? project.ActualCompletionDate.Value.AddDays(faker.Random.Int(1, 7))
+                            : null,
+                        IsVerified = true, // All are verified since they completed actual projects
+                        IsFeatured = overallRating == 5 && faker.Random.Bool(0.3f), // 30% of 5-star ratings are featured
+                        HelpfulCount = faker.Random.Int(0, 25),
+                        CreatedAt = project.ActualCompletionDate ?? DateTime.UtcNow,
+                        UpdatedAt = project.ActualCompletionDate ?? DateTime.UtcNow
+                    };
+                    
+                    // Adjust timestamps
+                    if (project.ActualCompletionDate.HasValue)
+                    {
+                        rating.CreatedAt = project.ActualCompletionDate.Value.AddDays(faker.Random.Int(1, 5));
+                        rating.UpdatedAt = rating.CreatedAt;
+                    }
+
+                    ratings.Add(rating);
+                }
+            }
+
+            await context.Ratings.AddRangeAsync(ratings);
+            await context.SaveChangesAsync();
+
+            // Update provider profiles with rating statistics
+            var providerIds = ratings.Select(r => r.ProviderId).Distinct();
+            foreach (var providerId in providerIds)
+            {
+                var providerRatings = ratings.Where(r => r.ProviderId == providerId).ToList();
+                var provider = await context.ProviderProfiles.FindAsync(providerId);
+                
+                if (provider != null)
+                {
+                    provider.TotalRatings = providerRatings.Count;
+                    provider.AverageRating = (decimal)providerRatings.Average(r => r.OverallRating);
+                    provider.TotalProjects = projects.Count(p => p.ProviderId == providerId);
+                    provider.CompletionRate = projects.Count(p => p.ProviderId == providerId && p.Status == ProjectStatus.COMPLETED) * 100m 
+                        / projects.Count(p => p.ProviderId == providerId);
+                }
+            }
+
             await context.SaveChangesAsync();
         }
     }

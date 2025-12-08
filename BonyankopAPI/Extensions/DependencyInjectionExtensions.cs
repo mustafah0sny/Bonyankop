@@ -16,6 +16,8 @@ namespace BonyankopAPI.Extensions
             services.AddScoped<IDiagnosticRepository, DiagnosticRepository>();
             services.AddScoped<IServiceRequestRepository, ServiceRequestRepository>();
             services.AddScoped<IQuoteRepository, QuoteRepository>();
+            services.AddScoped<IProjectRepository, ProjectRepository>();
+            services.AddScoped<IRatingRepository, RatingRepository>();
 
             // Register custom services
             services.AddScoped<ITokenService, TokenService>();
