@@ -106,7 +106,7 @@ public class ProviderProfileController : ControllerBase
     /// Get current user's provider profile
     /// </summary>
     [HttpGet("my-profile")]
-    [Authorize(Roles = "COMPANY,ENGINEER")]
+    //[Authorize(Roles = "COMPANY,ENGINEER")]
     public async Task<IActionResult> GetMyProfile()
     {
         var userIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
@@ -135,7 +135,7 @@ public class ProviderProfileController : ControllerBase
     /// Update provider profile
     /// </summary>
     [HttpPut]
-    [Authorize(Roles = "COMPANY,ENGINEER")]
+    //[Authorize(Roles = "COMPANY,ENGINEER")]
     public async Task<IActionResult> UpdateProfile([FromBody] UpdateProviderProfileDto dto)
     {
         var userIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);

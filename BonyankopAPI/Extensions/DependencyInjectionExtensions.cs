@@ -14,6 +14,8 @@ namespace BonyankopAPI.Extensions
             services.AddScoped<IProviderProfileRepository, ProviderProfileRepository>();
             services.AddScoped<IPortfolioItemRepository, PortfolioItemRepository>();
             services.AddScoped<IDiagnosticRepository, DiagnosticRepository>();
+            services.AddScoped<IServiceRequestRepository, ServiceRequestRepository>();
+            services.AddScoped<IQuoteRepository, QuoteRepository>();
 
             // Register custom services
             services.AddScoped<ITokenService, TokenService>();

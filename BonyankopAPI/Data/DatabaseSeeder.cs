@@ -27,6 +27,9 @@ namespace BonyankopAPI.Data
             
             // Seed additional fake users and profiles using Bogus
             await SeedFakeDataAsync(userManager, context);
+            
+            // Seed Service Requests and Quotes
+            await SeedServiceMarketplaceAsync(context, userManager);
         }
 
         private static async Task SeedRolesAsync(RoleManager<IdentityRole<Guid>> roleManager)
@@ -641,6 +644,168 @@ namespace BonyankopAPI.Data
             }
 
             await context.PortfolioItems.AddRangeAsync(portfolioItems);
+            await context.SaveChangesAsync();
+        }
+
+        private static async Task SeedServiceMarketplaceAsync(ApplicationDbContext context, UserManager<User> userManager)
+        {
+            if (await context.ServiceRequests.AnyAsync())
+            {
+                return; // Already seeded
+            }
+
+            var faker = new Faker();
+
+            // Get citizens and providers
+            var citizens = await userManager.GetUsersInRoleAsync("CITIZEN");
+            var providerProfiles = await context.ProviderProfiles.ToListAsync();
+
+            if (!citizens.Any() || !providerProfiles.Any())
+            {
+                return; // Need citizens and providers first
+            }
+
+            var problemCategories = new[] { "PLUMBING", "ELECTRICAL", "STRUCTURAL", "HVAC", "ROOFING", "CARPENTRY", "PAINTING", "FLOORING" };
+            var providerTypes = new[] { "ENGINEER", "COMPANY" };
+            var propertyTypes = new[] { "Residential House", "Apartment", "Commercial Building", "Office", "Warehouse", "Restaurant", "Retail Store" };
+
+            var serviceRequests = new List<ServiceRequest>();
+
+            // Create 30 service requests
+            for (int i = 0; i < 30; i++)
+            {
+                var citizen = faker.PickRandom(citizens.ToList());
+                var category = faker.PickRandom(problemCategories);
+                var imageCount = faker.Random.Int(1, 5);
+                var images = new List<string>();
+
+                for (int j = 0; j < imageCount; j++)
+                {
+                    images.Add($"https://picsum.photos/800/600?random={Guid.NewGuid()}");
+                }
+
+                var problemTitles = new Dictionary<string, string[]>
+                {
+                    ["PLUMBING"] = new[] { "Leaking pipe under sink", "Clogged main drain", "Water heater not working", "Low water pressure", "Burst pipe in basement" },
+                    ["ELECTRICAL"] = new[] { "Circuit breaker keeps tripping", "Outlet not working", "Flickering lights", "Need new electrical panel", "Wiring upgrade needed" },
+                    ["STRUCTURAL"] = new[] { "Cracks in foundation", "Sagging floor", "Wall damage", "Ceiling crack", "Support beam issue" },
+                    ["HVAC"] = new[] { "AC not cooling", "Heating system malfunction", "Ductwork repair needed", "Thermostat not working", "Strange noise from HVAC" },
+                    ["ROOFING"] = new[] { "Roof leak", "Missing shingles", "Damaged flashing", "Gutter repair needed", "Roof inspection required" },
+                    ["CARPENTRY"] = new[] { "Door frame repair", "Cabinet installation", "Deck renovation", "Custom shelving", "Window frame repair" },
+                    ["PAINTING"] = new[] { "Interior painting needed", "Exterior paint job", "Ceiling paint repair", "Cabinet refinishing", "Accent wall painting" },
+                    ["FLOORING"] = new[] { "Hardwood floor refinishing", "Tile replacement", "Carpet installation", "Vinyl flooring repair", "Floor leveling needed" }
+                };
+
+                var title = faker.PickRandom(problemTitles[category]);
+                var isRecent = faker.Random.Bool(0.7f); // 70% are recent requests
+                var createdDate = isRecent ? faker.Date.Recent(14) : faker.Date.Past(2, DateTime.UtcNow.AddMonths(-1));
+
+                var serviceRequest = new ServiceRequest
+                {
+                    RequestId = Guid.NewGuid(),
+                    CitizenId = citizen.Id,
+                    ProblemTitle = title,
+                    ProblemDescription = faker.Lorem.Paragraphs(2, 3),
+                    ProblemCategory = category,
+                    AdditionalImages = images,
+                    PreferredProviderType = faker.Random.Bool(0.6f) ? faker.PickRandom(providerTypes) : null,
+                    PreferredServiceDate = faker.Random.Bool(0.5f) ? faker.Date.Soon(30) : null,
+                    PropertyType = faker.PickRandom(propertyTypes),
+                    PropertyAddress = faker.Address.FullAddress(),
+                    ContactPhone = faker.Phone.PhoneNumber("+1##########"),
+                    Status = RequestStatus.OPEN,
+                    QuotesCount = 0,
+                    ViewsCount = faker.Random.Int(5, 50),
+                    ExpiresAt = faker.Random.Bool(0.7f) ? faker.Date.Soon(45) : null,
+                    CreatedAt = createdDate,
+                    UpdatedAt = createdDate
+                };
+
+                serviceRequests.Add(serviceRequest);
+            }
+
+            await context.ServiceRequests.AddRangeAsync(serviceRequests);
+            await context.SaveChangesAsync();
+
+            // Create quotes for service requests
+            var quotes = new List<Quote>();
+
+            foreach (var request in serviceRequests.Take(20)) // Only first 20 requests get quotes
+            {
+                var quoteCount = faker.Random.Int(1, 5); // Each request gets 1-5 quotes
+
+                for (int i = 0; i < quoteCount; i++)
+                {
+                    var provider = faker.PickRandom(providerProfiles);
+
+                    // Avoid duplicate quotes from same provider
+                    if (quotes.Any(q => q.RequestId == request.RequestId && q.ProviderId == provider.ProviderId))
+                    {
+                        continue;
+                    }
+
+                    var laborCost = faker.Random.Decimal(500, 5000);
+                    var materialsCost = faker.Random.Decimal(200, 3000);
+                    var equipmentCost = faker.Random.Decimal(0, 1000);
+                    var otherCosts = faker.Random.Decimal(0, 500);
+                    var subtotal = laborCost + materialsCost + equipmentCost + otherCosts;
+                    var taxAmount = subtotal * 0.08m;
+                    var totalAmount = subtotal + taxAmount;
+
+                    var costBreakdown = new CostBreakdown
+                    {
+                        LaborCost = laborCost,
+                        MaterialsCost = materialsCost,
+                        EquipmentCost = equipmentCost,
+                        OtherCosts = otherCosts,
+                        TaxAmount = taxAmount,
+                        TotalAmount = totalAmount
+                    };
+
+                    var submittedDate = faker.Date.Between(request.CreatedAt, DateTime.UtcNow);
+                    var validityDays = faker.Random.Int(15, 60);
+
+                    var quote = new Quote
+                    {
+                        QuoteId = Guid.NewGuid(),
+                        RequestId = request.RequestId,
+                        ProviderId = provider.ProviderId,
+                        EstimatedCost = totalAmount,
+                        CostBreakdownJson = System.Text.Json.JsonSerializer.Serialize(costBreakdown),
+                        EstimatedDurationDays = faker.Random.Int(1, 30),
+                        TechnicalAssessment = faker.Lorem.Paragraph(),
+                        ProposedSolution = faker.Lorem.Paragraphs(2),
+                        MaterialsIncluded = faker.Random.Bool(0.7f),
+                        WarrantyPeriodMonths = faker.Random.Int(6, 36),
+                        TermsAndConditions = faker.Lorem.Paragraph(),
+                        ValidityPeriodDays = validityDays,
+                        Attachments = faker.Random.Bool(0.3f) 
+                            ? new List<string> { $"https://example.com/quote-{Guid.NewGuid()}.pdf" } 
+                            : new List<string>(),
+                        Status = QuoteStatus.PENDING,
+                        SubmittedAt = submittedDate,
+                        ExpiresAt = submittedDate.AddDays(validityDays),
+                        UpdatedAt = submittedDate
+                    };
+
+                    quotes.Add(quote);
+                }
+            }
+
+            await context.Quotes.AddRangeAsync(quotes);
+            await context.SaveChangesAsync();
+
+            // Update service request quotes counts
+            foreach (var request in serviceRequests.Take(20))
+            {
+                request.QuotesCount = quotes.Count(q => q.RequestId == request.RequestId);
+                if (request.QuotesCount > 0)
+                {
+                    request.Status = RequestStatus.QUOTES_RECEIVED;
+                }
+            }
+
+            context.ServiceRequests.UpdateRange(serviceRequests.Take(20));
             await context.SaveChangesAsync();
         }
     }

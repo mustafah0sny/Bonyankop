@@ -15,6 +15,8 @@ namespace BonyankopAPI.Data
         public DbSet<ProviderProfile> ProviderProfiles { get; set; }
         public DbSet<PortfolioItem> PortfolioItems { get; set; }
         public DbSet<Diagnostic> Diagnostics { get; set; }
+        public DbSet<ServiceRequest> ServiceRequests { get; set; }
+        public DbSet<Quote> Quotes { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -74,6 +76,47 @@ namespace BonyankopAPI.Data
                 entity.HasOne(e => e.Citizen)
                     .WithMany()
                     .HasForeignKey(e => e.CitizenId)
+                    .OnDelete(DeleteBehavior.Restrict);
+            });
+
+            // Configure ServiceRequest entity
+            modelBuilder.Entity<ServiceRequest>(entity =>
+            {
+                entity.HasKey(e => e.RequestId);
+                entity.Property(e => e.Status).HasConversion<string>();
+                entity.Property(e => e.AdditionalImages).HasConversion(
+                    v => string.Join(',', v),
+                    v => v.Split(',', StringSplitOptions.RemoveEmptyEntries).ToList());
+                
+                entity.HasOne(e => e.Citizen)
+                    .WithMany()
+                    .HasForeignKey(e => e.CitizenId)
+                    .OnDelete(DeleteBehavior.Restrict);
+                
+                entity.HasOne(e => e.Diagnostic)
+                    .WithMany()
+                    .HasForeignKey(e => e.DiagnosticId)
+                    .OnDelete(DeleteBehavior.SetNull)
+                    .IsRequired(false);
+            });
+
+            // Configure Quote entity
+            modelBuilder.Entity<Quote>(entity =>
+            {
+                entity.HasKey(e => e.QuoteId);
+                entity.Property(e => e.Status).HasConversion<string>();
+                entity.Property(e => e.Attachments).HasConversion(
+                    v => string.Join(',', v),
+                    v => v.Split(',', StringSplitOptions.RemoveEmptyEntries).ToList());
+                
+                entity.HasOne(e => e.ServiceRequest)
+                    .WithMany()
+                    .HasForeignKey(e => e.RequestId)
+                    .OnDelete(DeleteBehavior.Cascade);
+                
+                entity.HasOne(e => e.Provider)
+                    .WithMany()
+                    .HasForeignKey(e => e.ProviderId)
                     .OnDelete(DeleteBehavior.Restrict);
             });
 

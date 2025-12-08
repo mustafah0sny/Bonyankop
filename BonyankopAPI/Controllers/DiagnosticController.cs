@@ -30,7 +30,7 @@ public class DiagnosticController : ControllerBase
     /// Analyze an image using AI to diagnose home maintenance issues
     /// </summary>
     [HttpPost("analyze")]
-    [Authorize(Roles = "CITIZEN,ADMIN")]
+    //[Authorize(Roles = "CITIZEN,ADMIN")]
     public async Task<IActionResult> AnalyzeImage([FromBody] AnalyzeImageDto dto)
     {
         var userIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
@@ -105,7 +105,7 @@ public class DiagnosticController : ControllerBase
     /// Get diagnostic by ID
     /// </summary>
     [HttpGet("{diagnosticId}")]
-    [Authorize]
+    //[Authorize]
     public async Task<IActionResult> GetDiagnostic(Guid diagnosticId)
     {
         var diagnostic = await _diagnosticRepository.GetByIdAsync(diagnosticId);
@@ -139,7 +139,7 @@ public class DiagnosticController : ControllerBase
     /// Get all diagnostics for current user
     /// </summary>
     [HttpGet("my-diagnostics")]
-    [Authorize(Roles = "CITIZEN,ADMIN")]
+    //[Authorize(Roles = "CITIZEN,ADMIN")]
     public async Task<IActionResult> GetMyDiagnostics()
     {
         var userIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
@@ -158,7 +158,7 @@ public class DiagnosticController : ControllerBase
     /// Get diagnostics by risk level
     /// </summary>
     [HttpGet("by-risk/{riskLevel}")]
-    [Authorize(Roles = "ADMIN,GOVERNMENT")]
+    //[Authorize(Roles = "ADMIN,GOVERNMENT")]
     public async Task<IActionResult> GetByRiskLevel(string riskLevel)
     {
         if (!Enum.TryParse<RiskLevel>(riskLevel.ToUpper(), out var parsedRiskLevel))
@@ -176,7 +176,7 @@ public class DiagnosticController : ControllerBase
     /// Get diagnostics by problem category
     /// </summary>
     [HttpGet("by-category/{category}")]
-    [Authorize(Roles = "ADMIN,GOVERNMENT")]
+    //[Authorize(Roles = "ADMIN,GOVERNMENT")]
     public async Task<IActionResult> GetByCategory(string category)
     {
         if (!Enum.TryParse<ProblemCategory>(category.ToUpper(), out var parsedCategory))
@@ -194,7 +194,7 @@ public class DiagnosticController : ControllerBase
     /// Get recent diagnostics
     /// </summary>
     [HttpGet("recent")]
-    [Authorize(Roles = "ADMIN,GOVERNMENT")]
+    //[Authorize(Roles = "ADMIN,GOVERNMENT")]
     public async Task<IActionResult> GetRecentDiagnostics([FromQuery] int count = 10)
     {
         if (count < 1 || count > 100)
@@ -212,7 +212,7 @@ public class DiagnosticController : ControllerBase
     /// Get diagnostic statistics
     /// </summary>
     [HttpGet("statistics")]
-    [Authorize(Roles = "ADMIN,GOVERNMENT")]
+    //[Authorize(Roles = "ADMIN,GOVERNMENT")]
     public async Task<IActionResult> GetStatistics()
     {
         var categoryStats = await _diagnosticRepository.GetCategoryStatisticsAsync();

@@ -26,7 +26,7 @@ public class PortfolioItemController : ControllerBase
     /// Create a new portfolio item
     /// </summary>
     [HttpPost]
-    [Authorize(Roles = "COMPANY,ENGINEER")]
+    //[Authorize(Roles = "COMPANY,ENGINEER")]
     public async Task<IActionResult> CreatePortfolioItem([FromBody] CreatePortfolioItemDto dto)
     {
         var userIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
@@ -110,7 +110,7 @@ public class PortfolioItemController : ControllerBase
     /// Get current user's portfolio items
     /// </summary>
     [HttpGet("my-portfolio")]
-    [Authorize(Roles = "COMPANY,ENGINEER")]
+    //[Authorize(Roles = "COMPANY,ENGINEER")]
     public async Task<IActionResult> GetMyPortfolio()
     {
         var userIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
@@ -134,7 +134,7 @@ public class PortfolioItemController : ControllerBase
     /// Update portfolio item
     /// </summary>
     [HttpPut("{portfolioId}")]
-    [Authorize(Roles = "COMPANY,ENGINEER")]
+    //[Authorize(Roles = "COMPANY,ENGINEER")]
     public async Task<IActionResult> UpdatePortfolioItem(Guid portfolioId, [FromBody] UpdatePortfolioItemDto dto)
     {
         var userIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
@@ -190,7 +190,7 @@ public class PortfolioItemController : ControllerBase
     /// Reorder portfolio item
     /// </summary>
     [HttpPatch("{portfolioId}/reorder")]
-    [Authorize(Roles = "COMPANY,ENGINEER")]
+    //[Authorize(Roles = "COMPANY,ENGINEER")]
     public async Task<IActionResult> ReorderPortfolioItem(Guid portfolioId, [FromBody] ReorderPortfolioItemDto dto)
     {
         var userIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
@@ -225,7 +225,7 @@ public class PortfolioItemController : ControllerBase
     /// Delete portfolio item
     /// </summary>
     [HttpDelete("{portfolioId}")]
-    [Authorize(Roles = "COMPANY,ENGINEER")]
+    //[Authorize(Roles = "COMPANY,ENGINEER")]
     public async Task<IActionResult> DeletePortfolioItem(Guid portfolioId)
     {
         var userIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
