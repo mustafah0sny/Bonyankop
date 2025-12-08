@@ -16,18 +16,23 @@ builder.Services.AddSwaggerConfiguration();
 
 var app = builder.Build();
 
-// Seed database
+// Seed database (optional - only if database is accessible)
 using (var scope = app.Services.CreateScope())
 {
     var services = scope.ServiceProvider;
     try
     {
-        await DatabaseSeeder.SeedAsync(services);
+        var context = services.GetRequiredService<ApplicationDbContext>();
+        // Test connection before seeding
+        if (await context.Database.CanConnectAsync())
+        {
+            await DatabaseSeeder.SeedAsync(services);
+        }
     }
     catch (Exception ex)
     {
         var logger = services.GetRequiredService<ILogger<Program>>();
-        logger.LogError(ex, "An error occurred while seeding the database.");
+        logger.LogWarning(ex, "Database seeding skipped or failed. This is normal for first deployment.");
     }
 }
 
@@ -40,7 +45,12 @@ app.UseSwaggerUI(options =>
     options.DocumentTitle = "Bonyankop API Documentation";
 });
 
-app.UseHttpsRedirection();
+// Only use HTTPS redirection in production with proper SSL
+if (app.Environment.IsProduction() && app.Configuration["UseHttpsRedirection"] == "true")
+{
+    app.UseHttpsRedirection();
+}
+
 app.UseCors("AllowAll");
 app.UseAuthentication();
 app.UseAuthorization();
