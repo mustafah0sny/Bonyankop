@@ -32,16 +32,13 @@ using (var scope = app.Services.CreateScope())
 }
 
 // Configure the HTTP request pipeline
-if (app.Environment.IsDevelopment())
+app.UseSwagger();
+app.UseSwaggerUI(options =>
 {
-    app.UseSwagger();
-    app.UseSwaggerUI(options =>
-    {
-        options.SwaggerEndpoint("/swagger/v1/swagger.json", "Bonyankop API v1");
-        options.RoutePrefix = string.Empty; // Set Swagger UI at the app's root
-        options.DocumentTitle = "Bonyankop API Documentation";
-    });
-}
+    options.SwaggerEndpoint("/swagger/v1/swagger.json", "Bonyankop API v1");
+    options.RoutePrefix = string.Empty; // Set Swagger UI at the app's root
+    options.DocumentTitle = "Bonyankop API Documentation";
+});
 
 app.UseHttpsRedirection();
 app.UseCors("AllowAll");
