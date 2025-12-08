@@ -40,9 +40,10 @@ jobs:
             "Audience": "BonyankopAPIUsers",
             "ExpiryMinutes": 60
           },
+          "DetailedErrors": false,
           "Logging": {
             "LogLevel": {
-              "Default": "Warning",
+              "Default": "Information",
               "Microsoft.AspNetCore": "Warning",
               "Microsoft.EntityFrameworkCore": "Warning"
             }
@@ -51,6 +52,9 @@ jobs:
         }
         "@
         $productionSettings | Out-File -FilePath ./publish/appsettings.Production.json -Encoding UTF8
+        
+        # Also create appsettings.json as fallback
+        $productionSettings | Out-File -FilePath ./publish/appsettings.json -Encoding UTF8
       shell: pwsh
       
     - name: Create deployment package
@@ -63,7 +67,7 @@ jobs:
         username: ${{ secrets.FTP_USERNAME }}
         password: ${{ secrets.FTP_PASSWORD }}
         local-dir: ./publish/
-        server-dir: ./
+        server-dir: ./wwwroot/
         dangerous-clean-slate: true
         exclude: |
           **/logs/**

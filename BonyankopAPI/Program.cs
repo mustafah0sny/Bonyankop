@@ -16,25 +16,8 @@ builder.Services.AddSwaggerConfiguration();
 
 var app = builder.Build();
 
-// Seed database (optional - only if database is accessible)
-using (var scope = app.Services.CreateScope())
-{
-    var services = scope.ServiceProvider;
-    try
-    {
-        var context = services.GetRequiredService<ApplicationDbContext>();
-        // Test connection before seeding
-        if (await context.Database.CanConnectAsync())
-        {
-            await DatabaseSeeder.SeedAsync(services);
-        }
-    }
-    catch (Exception ex)
-    {
-        var logger = services.GetRequiredService<ILogger<Program>>();
-        logger.LogWarning(ex, "Database seeding skipped or failed. This is normal for first deployment.");
-    }
-}
+// Database seeding disabled for production - run migrations manually if needed
+// To seed: dotnet ef database update
 
 // Configure the HTTP request pipeline
 app.UseSwagger();
