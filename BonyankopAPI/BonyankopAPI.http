@@ -1,0 +1,6 @@
+@BonyankopAPI_HostAddress = http://localhost:5093
+
+GET {{BonyankopAPI_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
