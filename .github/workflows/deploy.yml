@@ -66,7 +66,7 @@ jobs:
         server-dir: wwwroot/
         dangerous-clean-slate: false
         exclude: |
-          **/runtimes/**
-          **/*.pdb
-          **/logs/**
-          **/appsettings.Development.json
+          **/runtimes/**            # Exclude all 'runtimes/' folders and subdirectories
+          **/*.pdb                 # Exclude all .pdb files (debugging symbols)
+          **/logs/**                # Exclude all 'logs/' folders
+          **/appsettings.Development.json  # Exclude development config file
