@@ -111,8 +111,8 @@ jobs:
         # Upload app_offline.htm first to stop the application
         put publish\app_offline.htm
         
-        # Upload all files (overwrite existing)
-        put -delete publish\* .
+        # Upload all files (overwrite existing) - note the trailing slash
+        put -delete publish\* ./
         
         # Remove app_offline.htm to restart the application
         rm app_offline.htm
