@@ -71,6 +71,7 @@ jobs:
         protocol: ftps
         port: 21
         log-level: verbose
+        dangerous-clean-slate: true
         exclude: |
           **/logs/**
           **/appsettings.Development.json
