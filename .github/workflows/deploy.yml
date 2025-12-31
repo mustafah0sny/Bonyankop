@@ -8,27 +8,26 @@ on:
 jobs:
   build-and-deploy:
     runs-on: windows-latest
-
+    
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
-
-    - name: Setup .NET 6 (MonsterASP supported)
+      
+    - name: Setup .NET
       uses: actions/setup-dotnet@v4
       with:
         dotnet-version: '6.0.x'
-
+        
     - name: Restore dependencies
       run: dotnet restore BonyankopAPI/BonyankopAPI.csproj
-
+      
     - name: Build
-      run: dotnet build BonyankopAPI/BonyankopAPI.csproj -c Release --no-restore
-
-    - name: Publish (framework-dependent ONLY)
-      run: dotnet publish BonyankopAPI/BonyankopAPI.csproj -c Release --self-contained false -o publish
-
+      run: dotnet build BonyankopAPI/BonyankopAPI.csproj --configuration Release --no-restore
+      
+    - name: Publish
+      run: dotnet publish BonyankopAPI/BonyankopAPI.csproj -c Release -o ./publish
+      
     - name: Create production appsettings
-      shell: pwsh
       run: |
         $productionSettings = @"
         {
@@ -52,21 +51,28 @@ jobs:
           "AllowedHosts": "*"
         }
         "@
-
-        $productionSettings | Out-File publish/appsettings.json -Encoding UTF8
-        $productionSettings | Out-File publish/appsettings.Production.json -Encoding UTF8
-
-    - name: Deploy to MonsterASP via FTP
+        $productionSettings | Out-File -FilePath ./publish/appsettings.Production.json -Encoding UTF8
+        
+        # Also create appsettings.json as fallback
+        $productionSettings | Out-File -FilePath ./publish/appsettings.json -Encoding UTF8
+      shell: pwsh
+      
+    - name: Create deployment package
+      run: Compress-Archive -Path ./publish/* -DestinationPath ./BonyankopAPI-Deploy.zip -Force
+      
+    - name: Deploy via FTP
       uses: SamKirkland/FTP-Deploy-Action@v4.3.4
       with:
         server: ${{ secrets.FTP_SERVER }}
         username: ${{ secrets.FTP_USERNAME }}
         password: ${{ secrets.FTP_PASSWORD }}
-        local-dir: publish/
-        server-dir: wwwroot/
-        dangerous-clean-slate: false
+        local-dir: ./publish/
+        server-dir: /
+        protocol: ftps
+        port: 21
+        log-level: verbose
         exclude: |
-          **/runtimes/**            # Exclude all 'runtimes/' folders and subdirectories
-          **/*.pdb                 # Exclude all .pdb files (debugging symbols)
-          **/logs/**                # Exclude all 'logs/' folders
-          **/appsettings.Development.json  # Exclude development config file
+          **/logs/**
+          **/appsettings.Development.json
+          **/.git*
+          **/.git*/**
