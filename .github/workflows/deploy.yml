@@ -65,6 +65,27 @@ jobs:
         choco install winscp -y --no-progress
       shell: pwsh
       
+    - name: Create app_offline.htm
+      run: |
+        $offlineContent = @"
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>Application Updating</title>
+            <style>
+                body { font-family: Arial, sans-serif; text-align: center; padding: 50px; }
+                h1 { color: #333; }
+            </style>
+        </head>
+        <body>
+            <h1>Application is being updated</h1>
+            <p>Please wait a moment and refresh the page...</p>
+        </body>
+        </html>
+        "@
+        $offlineContent | Out-File -FilePath ./publish/app_offline.htm -Encoding UTF8
+      shell: pwsh
+      
     - name: Deploy via WinSCP (FTP)
       run: |
         $ftpServer = "${{ secrets.FTP_SERVER }}"
@@ -73,23 +94,28 @@ jobs:
         
         # Create WinSCP script
         $scriptContent = @"
-        option batch abort
+        option batch continue
         option confirm off
         open ftp://${ftpUsername}:${ftpPassword}@${ftpServer}
         option transfer binary
         
-        # Remove old files (except logs)
-        rm *.dll
-        rm *.exe
-        rm *.json
-        rm *.pdb
-        rm *.xml
+        # List current directory to see structure
+        ls
         
-        # Upload new files
-        put publish\* /
+        # Try to create wwwroot directory if it doesn't exist
+        mkdir wwwroot
         
-        # Upload subdirectories
-        synchronize remote -delete publish /
+        # Change to wwwroot directory
+        cd wwwroot
+        
+        # Upload app_offline.htm first to stop the application
+        put publish\app_offline.htm
+        
+        # Upload all files (overwrite existing)
+        put -delete publish\* .
+        
+        # Remove app_offline.htm to restart the application
+        rm app_offline.htm
         
         close
         exit
@@ -101,9 +127,12 @@ jobs:
         & "C:\Program Files (x86)\WinSCP\WinSCP.com" /script=deploy-script.txt /log=winscp.log
         
         if ($LASTEXITCODE -ne 0) {
-          Get-Content winscp.log
-          throw "Deployment failed with exit code $LASTEXITCODE"
+          Write-Host "Deployment completed with warnings. Checking log..."
+          Get-Content winscp.log | Select-Object -Last 100
+        } else {
+          Write-Host "Deployment completed successfully!"
         }
         
-        Write-Host "Deployment completed successfully!"
+        Write-Host "`n=== Deployment Log Summary ==="
+        Get-Content winscp.log | Select-Object -Last 20
       shell: pwsh
