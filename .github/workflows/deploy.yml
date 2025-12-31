@@ -60,20 +60,50 @@ jobs:
     - name: Create deployment package
       run: Compress-Archive -Path ./publish/* -DestinationPath ./BonyankopAPI-Deploy.zip -Force
       
-    - name: Deploy via FTP
-      uses: SamKirkland/FTP-Deploy-Action@v4.3.4
-      with:
-        server: ${{ secrets.FTP_SERVER }}
-        username: ${{ secrets.FTP_USERNAME }}
-        password: ${{ secrets.FTP_PASSWORD }}
-        local-dir: ./publish/
-        server-dir: /
-        protocol: ftps
-        port: 21
-        log-level: verbose
-        dangerous-clean-slate: true
-        exclude: |
-          **/logs/**
-          **/appsettings.Development.json
-          **/.git*
-          **/.git*/**
+    - name: Install WinSCP
+      run: |
+        choco install winscp -y --no-progress
+      shell: pwsh
+      
+    - name: Deploy via WinSCP (FTP)
+      run: |
+        $ftpServer = "${{ secrets.FTP_SERVER }}"
+        $ftpUsername = "${{ secrets.FTP_USERNAME }}"
+        $ftpPassword = "${{ secrets.FTP_PASSWORD }}"
+        
+        # Create WinSCP script
+        $scriptContent = @"
+        option batch abort
+        option confirm off
+        open ftp://${ftpUsername}:${ftpPassword}@${ftpServer}
+        option transfer binary
+        
+        # Remove old files (except logs)
+        rm *.dll
+        rm *.exe
+        rm *.json
+        rm *.pdb
+        rm *.xml
+        
+        # Upload new files
+        put publish\* /
+        
+        # Upload subdirectories
+        synchronize remote -delete publish /
+        
+        close
+        exit
+        "@
+        
+        $scriptContent | Out-File -FilePath deploy-script.txt -Encoding ASCII
+        
+        # Run WinSCP
+        & "C:\Program Files (x86)\WinSCP\WinSCP.com" /script=deploy-script.txt /log=winscp.log
+        
+        if ($LASTEXITCODE -ne 0) {
+          Get-Content winscp.log
+          throw "Deployment failed with exit code $LASTEXITCODE"
+        }
+        
+        Write-Host "Deployment completed successfully!"
+      shell: pwsh
