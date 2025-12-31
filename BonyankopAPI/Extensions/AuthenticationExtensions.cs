@@ -15,7 +15,7 @@ namespace BonyankopAPI.Extensions
             var jwtSettings = configuration.GetSection("JwtSettings");
             var secretKey = jwtSettings["SecretKey"];
 
-            services.AddAuthentication(options =>
+            var authBuilder = services.AddAuthentication(options =>
             {
                 options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
                 options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
@@ -32,17 +32,30 @@ namespace BonyankopAPI.Extensions
                     ValidAudience = jwtSettings["Audience"],
                     IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey!))
                 };
-            })
-            .AddGoogle(options =>
-            {
-                options.ClientId = configuration["Authentication:Google:ClientId"] ?? "";
-                options.ClientSecret = configuration["Authentication:Google:ClientSecret"] ?? "";
-            })
-            .AddFacebook(options =>
-            {
-                options.AppId = configuration["Authentication:Facebook:AppId"] ?? "";
-                options.AppSecret = configuration["Authentication:Facebook:AppSecret"] ?? "";
             });
+
+            // Social login disabled - uncomment and configure when needed
+            // Only add Google authentication if ClientId is configured
+            // var googleClientId = configuration["Authentication:Google:ClientId"];
+            // if (!string.IsNullOrWhiteSpace(googleClientId) && googleClientId != "YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com")
+            // {
+            //     authBuilder.AddGoogle(options =>
+            //     {
+            //         options.ClientId = googleClientId;
+            //         options.ClientSecret = configuration["Authentication:Google:ClientSecret"] ?? "";
+            //     });
+            // }
+
+            // Only add Facebook authentication if AppId is configured
+            // var facebookAppId = configuration["Authentication:Facebook:AppId"];
+            // if (!string.IsNullOrWhiteSpace(facebookAppId) && facebookAppId != "YOUR_FACEBOOK_APP_ID")
+            // {
+            //     authBuilder.AddFacebook(options =>
+            //     {
+            //         options.AppId = facebookAppId;
+            //         options.AppSecret = configuration["Authentication:Facebook:AppSecret"] ?? "";
+            //     });
+            // }
 
             services.AddAuthorization();
 

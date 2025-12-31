@@ -40,6 +40,41 @@ jobs:
             "Audience": "BonyankopAPIUsers",
             "ExpiryMinutes": 60
           },
+          "Serilog": {
+            "MinimumLevel": {
+              "Default": "Information",
+              "Override": {
+                "Microsoft": "Warning",
+                "Microsoft.AspNetCore": "Warning",
+                "Microsoft.EntityFrameworkCore": "Information",
+                "System": "Warning"
+              }
+            },
+            "WriteTo": [
+              {
+                "Name": "Console"
+              },
+              {
+                "Name": "File",
+                "Args": {
+                  "path": "logs/bonyankop-.log",
+                  "rollingInterval": "Day",
+                  "retainedFileCountLimit": 30,
+                  "shared": true
+                }
+              },
+              {
+                "Name": "File",
+                "Args": {
+                  "path": "logs/bonyankop-errors-.log",
+                  "restrictedToMinimumLevel": "Error",
+                  "rollingInterval": "Day",
+                  "retainedFileCountLimit": 90,
+                  "shared": true
+                }
+              }
+            ]
+          },
           "DetailedErrors": false,
           "Logging": {
             "LogLevel": {
